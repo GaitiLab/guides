@@ -6,3 +6,5 @@ _main.*
 _book
 
 /.quarto/
+
+**/*.quarto_ipynb

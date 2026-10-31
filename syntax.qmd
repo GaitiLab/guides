@@ -7,17 +7,35 @@
 >
 > --- Phil Karlton
 
-Variable and function names should use only lowercase letters, numbers, and `_`.
-Use underscores (`_`) (so called snake case) to separate words within a name.
+In contrast to the tidyverse/style guide, in the Gaiti Lab we follow [Google's current R style guide](https://google.github.io/styleguide/Rguide.html) when it comes to naming conventions.
+
+* Function names should be `BigCamelCase` to clearly distinguish them from other objects, i.e. every word's first letter is capitalized.
+* Variable names (this includes named arguments in functions) should be `camelCase`, i.e. "first letter of each word is capitalized, except for the first letter of the entire compound word, which may be either upper or lower case" ([ref](https://developer.mozilla.org/en-US/docs/Glossary/Camel_case)).
 
 ```{r}
-# Good
-day_one
-day_1
-
+# (1) Functions
 # Bad
-DayOne
-dayone
+create_object <- function() {}
+do_nothing <- function() {}
+
+# Good
+CreateObject <- function() {}
+DoNothing <- function() {}
+
+# (2) Variable names
+# Bad
+spot_assignments = c(1, 2,3)
+
+# Good
+spotAssignments = c(1, 2,3)
+
+```
+
+
+Private functions should be start with a dot.
+```{r}
+# Example
+.CreateObject <- function (){}
 ```
 
 Base R uses dots in function names (`contrib.url()`) and class names
@@ -33,10 +51,10 @@ Strive for names that are concise and meaningful (this is not easy!).
 
 ```{r}
 # Good
-day_one
+dayOne
 
 # Bad
-first_day_of_the_month
+firstDayOfTheMonth
 djm1
 ```
 
@@ -110,14 +128,14 @@ The embracing operator, `{{ }}`, should always have inner spaces to help emphasi
 
 ```{r}
 # Good
-max_by <- function(data, var, by) {
+MaxBy <- function(data, var, by) {
   data |>
     group_by({{ by }}) |>
     summarise(maximum = max({{ var }}, na.rm = TRUE))
 }
 
 # Bad
-max_by <- function(data, var, by) {
+MaxBy <- function(data, var, by) {
   data |>
     group_by({{by}}) |>
     summarise(maximum = max({{var}}, na.rm = TRUE))
@@ -275,13 +293,13 @@ Avoid assignment in function calls:
 
 ```{r}
 # Good
-x <- complicated_function()
+x <- ComplicatedFunction()
 if (nzchar(x) < 1) {
   # do something
 }
 
 # Bad
-if (nzchar(x <- complicated_function()) < 1) {
+if (nzchar(x <- ComplicatedFunction()) < 1) {
   # do something
 }
 ```
@@ -305,14 +323,14 @@ This makes the code easier to read and to change later.
 
 ```{r}
 # Good
-do_something_very_complicated(
+DoSomethingVeryComplicated(
   something = "that",
   requires = many,
   arguments = "some of which may be long"
 )
 
 # Bad
-do_something_very_complicated("that", requires, many, arguments,
+DoSomethingVeryComplicated("that", requires, many, arguments,
                               "some of which may be long"
                               )
 ```
@@ -323,19 +341,19 @@ invocation of the function). If this introduces a large disparity between the li
 
 ```{r}
 # Good
-my_function(
+MyFunction(
   x,
-  long_argument_name,
-  extra_argument_a = 10,
-  extra_argument_b = c(1, 43, 390, 210209)
+  longArgumentName,
+  extraArgumentA = 10,
+  extraArgumentB = c(1, 43, 390, 210209)
 )
 
 # Also good
-my_function(
+MyFunction(
   x = x,
-  y = long_argument_name,
-  extra_argument_a = 10,
-  extra_argument_b = c(1, 43, 390, 210209)
+  y = longArgumentName,
+  extraArgumentA = 10,
+  extraArgumentB = c(1, 43, 390, 210209)
 )
 ```
 
@@ -443,14 +461,14 @@ R defines three types of looping constructs: `for`, `while`, and `repeat` loops.
     x[i] <- x[i] + 1
   }
 
-  while (waiting_for_something()) {
+  while (WaitingForSomething()) {
     cat("Still waiting...")
   }
 
   # Bad
   for (i in seq) x[i] <- x[i] + 1
 
-  while (waiting_for_something()) cat("Still waiting...")
+  while (WaitingForSomething()) cat("Still waiting...")
   ```
 
 * It is occasionally useful to use a `while` loop with an empty braced expression body to wait. As mentioned in [Braced expressions](#braced-expressions), there should be no space within the `{}`.
@@ -584,8 +602,8 @@ switch(x,
   c = 2
 )
 switch(x,
-  a = long_function_name1(), b = long_function_name2(),
-  c = long_function_name2()
+  a = longFunctionName1(), b = longFunctionName2(),
+  c = longFunctionName2()
 )
 switch(y, 1, 2, 3)
 ```
@@ -597,14 +615,14 @@ In particular, don't put `;` at the end of a line, and don't use `;` to put mult
 
 ```{r}
 # Good
-my_helper()
-my_other_helper()
+MyHelper()
+MyOtherHelper()
 
 # Bad
-my_helper();
-my_other_helper();
+MyHelper();
+MyOtherHelper();
 
-{ my_helper(); my_other_helper() }
+{ MyHelper(); MyOtherHelper() }
 ```
 
 ## Assignment

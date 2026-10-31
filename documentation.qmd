@@ -7,6 +7,44 @@ is future-you. Use [roxygen2](https://github.com/klutometis/roxygen) with
 [markdown](https://github.com/klutometis/roxygen/blob/master/vignettes/markdown.Rmd)
 support enabled to keep your documentation close to the code.
 
+To make things easier, you can use the VS Code R snippet `create-func` to create a function which automatically generates a roxygen2 skeleton template for you with the function. For existing functions without documentation, you can use `create-func-doc` to only generate roxygen2 skeleton.
+<!-- TODO ensure that this is up-to-date (pulled from GaitiLab VS Code Profile) -->
+The `create-func` will generate:
+```{r}
+#' Concise title that describes the function, dataset or class. Should use sentence case, but not end with a full stop.
+#'
+#' @description
+#'More detailed description of the function
+#'
+#' @param description of parameters, start with capital letter
+#'
+#' @return return
+#'
+#' @examples examples
+#'
+#' @export
+MyFunction <- function () {
+
+}
+```
+
+
+The `create-func-doc` will generate:
+```{r}
+#' Concise title that describes the function, dataset or class. Should use sentence case, but not end with a full stop.
+#'
+#' @description
+#'More detailed description of the function
+#'
+#' @param description of parameters, start with capital letter
+#'
+#' @return return
+#'
+#' @examples examples
+#'
+#' @export
+```
+
 ## Title and description
 
 Use the first line of your function documentation to provide a concise title that describes the function, dataset, or class. Titles should use sentence case

@@ -2,11 +2,10 @@ project:
   type: book
 
 book:
-  title: Tidyverse style guide
-  author: The tidyverse team
+  title: Gaiti Lab Style Guide
 
   site-url: https://style.tidyverse.org
-  repo-url: https://github.com/tidyverse/style/
+  repo-url: https://github.com/GaitiLab/style/
   repo-branch: main
   repo-actions: [edit, issue]
 
@@ -27,7 +26,6 @@ book:
     - documentation.qmd
     - tests.qmd
     - errors.qmd
-    - news.qmd
 
   - part: Other
     chapters:

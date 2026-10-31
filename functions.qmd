@@ -6,12 +6,12 @@ As well as following the general advice for object names in @sec-objectnames, st
 
 ```{r}
 # Good
-add_row()
-permute()
+AddRow()
+Permute()
 
 # Bad
-row_adder()
-permutation()
+RowAdder()
+Permutation()
 ```
 
 ## Anonymous functions
@@ -64,7 +64,7 @@ There are two options if the function name and definition can't fit on a single 
 
     ```{r}
     # Good
-    long_function_name <- function(
+    LongFunctionName <- function(
       a = "a long argument",
       b = "another argument",
       c = "another long argument"
@@ -78,7 +78,7 @@ There are two options if the function name and definition can't fit on a single 
 
     ```{r}
     # Good
-    long_function_name <- function(a = "a long argument",
+    LongFunctionName <- function(a = "a long argument",
                                    b = "another argument",
                                    c = "another long argument") {
       # As usual code is indented by two spaces.
@@ -89,7 +89,7 @@ These styles are designed to clearly separate the function definition from its b
 
 ```{r}
 # Bad
-long_function_name <- function(a = "a long argument",
+LongFunctionName <- function(a = "a long argument",
   b = "another argument",
   c = "another long argument") {
   # Here it's hard to spot where the definition ends and the
@@ -99,58 +99,25 @@ long_function_name <- function(a = "a long argument",
 
 If a function argument can't fit on a single line, this is a sign you should rework the argument to keep it [short and sweet](https://design.tidyverse.org/defaults-short-and-sweet.html).
 
-## S7
-
-In S7, the method definition can be long because the function name is replaced by a method call that specifies the generic and dispatch classes. In this case we recommend the single-indent style.
-
-```{r}
-method(from_provider, list(openai_provider, class_any)) <- function(
-  provider,
-  x,
-  ...,
-  error_call = caller_env()
-) {
-  ...
-}
-```
-
-If the method definition is too long to fit on one line, use the usual rules to
-spread the method arguments across multiple lines:
-
-```{r}
-method(
-  from_provider,
-  list(openai_provider, class_any, a_very_long_class_name)
-) <- function(
-  provider,
-  x,
-  ...,
-  error_call = caller_env()
-) {
-  ...
-}
-```
-
 ## `return()`
 
-Only use `return()` for early returns. Otherwise, rely on R to return the result
-of the last evaluated expression.
+Do not rely on R’s implicit return feature. It is better to be clear about your intent to return() an object ([ref](https://google.github.io/styleguide/Rguide.html#use-explicit-returns)).
 
 ```{r}
 # Good
-find_abs <- function(x) {
+FindAbs <- function(x) {
   if (x > 0) {
     return(x)
   }
-  x * -1
+  return(x * -1)
 }
-add_two <- function(x, y) {
-  x + y
+AddTwo <- function(x, y) {
+  return(x + y)
 }
 
 # Bad
-add_two <- function(x, y) {
-  return(x + y)
+AddTwo <- function(x, y) {
+    x + y
 }
 ```
 
@@ -158,17 +125,17 @@ Return statements should always be on their own line because they have important
 
 ```{r}
 # Good
-find_abs <- function(x) {
+FindAbs <- function(x) {
   if (x > 0) {
     return(x)
   }
-  x * -1
+  return(x * -1)
 }
 
 # Bad
-find_abs <- function(x) {
+FindAbs <- function(x) {
   if (x > 0) return(x)
-  x * -1
+  return(x * -1)
 }
 ```
 
@@ -178,7 +145,7 @@ This makes it possible to use the function as part of a pipe. `print` methods
 should usually do this, like this example from [httr](http://httr.r-lib.org/):
 
 ```{r}
-print.url <- function(x, ...) {
+PrintURL <- function(x, ...) {
   cat("Url: ", build_url(x), "\n", sep = "")
   invisible(x)
 }

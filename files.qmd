@@ -67,30 +67,111 @@ rename all files.
 
     ```
     # good
-    report-2022-03-20.qmd
-    report-2022-04-02.qmd
+    20220320_report.qmd
+    20220402_report.qmd
 
     # bad
     finalreport.qmd
     FinalReport-2.qmd
     ```
 
-## Organisation
 
-It's hard to describe exactly how you should organise your code across multiple files. I think the best rule of thumb is that if you can give a file a concise name that still evokes its contents, you've arrived at a good organisation. But getting to that point is hard.
+## R scripts
+
+For every R script use the R snippet `setup-default`, by using the template across the lab, it will make sharing code easier within the lab and for publication.
+
+The snippet generates the following:
+```{r}
+# ==== Script Information =======================================================
+# Author(s): Joan Kant
+# Created: 2026-10-31
+# Last modified: 2026-10-31
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Project: Gaiti Lab style
+# Script Name: test.R
+# Work directory: /Users/joankant/Coding/style
+# Container or conda environment used:
+# Script Description/Purpose:
+# Notes:
+# ===============================================================================
+# Setup environment ---------------------------------------
+# Unload all previously loaded packages + remove previous environment
+rm(list = ls(all = TRUE))
+box::purge_cache()
+pacman::p_unload()
+# Setup options
+# box.path can be a vector if there are multiple variables
+options(box.path = c(file.path(Sys.getenv("GLTB"), "modules")))
+
+# Load libraries
+pacman::p_load(data.table, tidyverse, stringr, duckplyr, logger, glue)
+box::use(
+    base/templateScript[BasicArgumentParser, SetupScript, SetWd, LogSession]
+)
+# Sets wd based on .git location
+SetWd()
+
+# Define input arguments when running from bash
+parser <- BasicArgumentParser(description = "")
+# Add more arguments, use parser$add_argument()
+params <- parser$parse_args()
+
+if (interactive()) {
+    # Provide arguments here for local runs
+    params$output_dir <- here::here("07_output")
+    params$log_path <- NULL
+}
+params <- SetupScript(params)
+
+# ---- Function(s) ----
+
+# ---- Config ----
+# ===============================================================================
+
+# ---- Load data ----
+
+# ---- Analysis ----
+
+
+# ===============================================================================
+
+log_info("Finished")
+LogSession(params)
+```
+
+For existing R scripts, you can use the snippet `r-header` to only generate the header:
+
+```{r}
+
+# ==== Script Information =======================================================
+# Author(s):
+# Created: 2026-10-31
+# Last modified: 2026-10-31
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Project:
+# Script Name: files.qmd
+# Work directory: /Users/joankant/Coding/style
+# Container or conda environment used:
+# Script Description/Purpose:
+# Notes:
+# ===============================================================================
+```
+
+With the VS Code extension [Auto Time Stamp](https://marketplace.visualstudio.com/items?itemName=lpubsppop01.vscode-auto-timestamp), the 'Last modified' property will be automatically updated. When you install the VS Code Gaiti Lab Profile from [GaitiLab/GaitiLabToolBox/templates/configs](https://github.com/GaitiLab/GaitiLabToolBox/blob/main/templates/configs/Gaiti%20Lab.code-profile) this extension will be automatically installed.
 
 ## Internal structure
 
 Use commented lines of `-` and `=` to break up your file into easily readable
-chunks.
+chunks. R snippets are available to do this: `chunk` or `create_section`
 
+`chunk` generates:
 ```{r}
-# Load data ---------------------------
+# chunkName ---------------------------
 
-# Plot data ---------------------------
 ```
 
-If your script uses add-on packages, load them all at once at the very
-beginning of the file. This is more transparent than sprinkling `library()`
-calls throughout your code or having hidden dependencies that are loaded in a
-startup file, such as `.Rprofile`.
+`create_section` generates:
+```{r}
+# ---- sectionName ----
+
+```

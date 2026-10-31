@@ -24,7 +24,7 @@ in packages.
 
 ```{r}
 # Bad
-help_compute <- function() {
+HelpCompute <- function() {
   # ... Lots of code ...
 }
 
@@ -33,9 +33,9 @@ help_compute <- function() {
 #' This is where the documentation of my function begins.
 #' ...
 #' @export
-do_something_cool <- function() {
+DoSomethingCool <- function() {
   # ... even more code ...
-  help_compute()
+  HelpCompute()
 }
 ```
 
@@ -49,13 +49,13 @@ NULL
 
 #' @describeIn something-cool Get the mean
 #' @export
-get_cool_mean <- function(x) {
+GetCoolMean <- function(x) {
   # ...
 }
 
 #' @describeIn something-cool Get the sum
 #' @export
-get_cool_sum <- function(x) {
+GetCoolSum <- function(x) {
   # ...
 }
 ```
