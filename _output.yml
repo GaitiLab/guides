@@ -1,6 +1,6 @@
 bookdown::bs4_book:
   includes:
-    in_header: [config/ga_script.html]
+    in_header: [ga_script.html]
   repo: https://github.com/GaitiLab/guides
 
 bookdown::pdf_book:
