@@ -1,0 +1,46 @@
+project:
+  type: book
+  output-dir: docs
+
+book:
+  title: Gaiti Lab Guides
+  repo-url: https://github.com/GaitiLab/guides/
+  repo-branch: main
+  repo-actions: [edit, issue]
+
+  chapters:
+  - index.qmd
+
+  - part: Files & Directories
+    chapters:
+      - chapters/files_and_directories/files.qmd
+
+
+  - part: Coding in R
+    chapters:
+    - chapters/coding_in_r/syntax.qmd
+    - chapters/coding_in_r/functions.qmd
+    - chapters/coding_in_r/pipes.qmd
+    - chapters/coding_in_r/ggplot2.qmd
+
+  - part: Developing R Packages
+    chapters:
+    - chapters/r_packages/package-files.qmd
+    - chapters/r_packages/documentation.qmd
+    - chapters/r_packages/tests.qmd
+    - chapters/r_packages/errors.qmd
+
+  - part: Reproducible Research
+    chapters:
+    - chapters/reproducible_research/git.qmd
+
+format:
+  html:
+    include-in-header: "style/plausible.html"
+    callout-appearance: simple
+    theme:
+      - style/styles.scss
+
+knitr:
+  opts_chunk:
+    eval: false

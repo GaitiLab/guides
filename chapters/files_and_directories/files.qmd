@@ -2,14 +2,12 @@
 
 ## Names
 
-1.  File names should be **machine readable**: avoid spaces, symbols, and special characters. Prefer file names that are all lower case, and never
-have names that differ only in their capitalization. Delimit words with `-` or `_`. Use `.R` as the extension of R files.
+1.  File names should be **machine readable**: avoid spaces, symbols, and special characters. Prefer file names that are all lower case, and never have names that differ only in their capitalization. Delimit words with `-` or `_`. Use `.R` as the extension of R files.
 
     ```
     # Good
     fit_models.R
     utility_functions.R
-    exploratory-data-analysis.R
 
     # Bad
     fit models.R
@@ -21,7 +19,7 @@ have names that differ only in their capitalization. Delimit words with `-` or `
 
     ```
     # good
-    report-draft-notes.txt
+    report_draft_notes.txt
 
     # bad
     temp.r
@@ -31,8 +29,8 @@ have names that differ only in their capitalization. Delimit words with `-` or `
 
     ```
     # good
-    fig-eda.png
-    fig-model-3.png
+    fig_eda.png
+    fig_model_3.png
 
     # bad
     figure eda.PNG
@@ -43,12 +41,12 @@ have names that differ only in their capitalization. Delimit words with `-` or `
 
     ```
     # good
-    01-load-data.R
-    02-exploratory-analysis.R
-    03-model-approach-1.R
-    04-model-approach-2.R
-    2025-01-01-report.Rmd
-    2025-02-01.report.Rmd
+    01_load_data.R
+    02_exploratory_analysis.R
+    03_model_approach_1.R
+    04_model_approach_2.R
+    2025_01_01_report.Rmd
+    2025_02_01_report.Rmd
 
     # bad
     alternative model.R
@@ -59,9 +57,7 @@ have names that differ only in their capitalization. Delimit words with `-` or `
     run-first.r
     ```
 
-    If you later realise that you've missed some steps, it's tempting to use `02a`,
-`02b`, etc. However, I think it's generally better to bite the bullet and
-rename all files.
+    If you later realise that you've missed some steps, it's tempting to use `02a`, `02b`, etc. However, I think it's generally better to bite the bullet and rename all files.
 
 4.  Don't [tempt fate](https://phdcomics.com/comics.php?f=1531) by using "final" or similar words in file names. Instead either rely on Git to track changes over time, or failing that, put the date in the file name.
 
@@ -75,12 +71,12 @@ rename all files.
     FinalReport-2.qmd
     ```
 
-
 ## R scripts
 
 For every R script use the R snippet `setup-default`, by using the template across the lab, it will make sharing code easier within the lab and for publication.
 
 The snippet generates the following:
+
 ```{r}
 # ==== Script Information =======================================================
 # Author(s): Joan Kant
@@ -161,16 +157,17 @@ With the VS Code extension [Auto Time Stamp](https://marketplace.visualstudio.co
 
 ## Internal structure
 
-Use commented lines of `-` and `=` to break up your file into easily readable
-chunks. R snippets are available to do this: `chunk` or `create_section`
+Use commented lines of `-` and `=` to break up your file into easily readable chunks. R snippets are available to do this: `chunk` or `create_section`
 
 `chunk` generates:
+
 ```{r}
 # chunkName ---------------------------
 
 ```
 
 `create_section` generates:
+
 ```{r}
 # ---- sectionName ----
 

@@ -1,4 +1,4 @@
-# Git/GitHub
+# Git & GitHub
 
 The secions [Basic Rules](#basic-rules) and [Formatting Rules](Formatting Rules) have been copied (and adapted) from [luismts/GitCommitBestPractices.md](https://gist.github.com/luismts/495d982e8c5b1a0ced4a57cf3d93cf60)
 

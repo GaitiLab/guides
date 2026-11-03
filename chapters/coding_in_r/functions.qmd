@@ -18,7 +18,7 @@ Permutation()
 
 Use the new lambda syntax: `\(x) x + 1` when writing short anonymous functions (i.e. when you define a function in an argument without giving it an explicit name).
 
-```R
+``` r
 # Good
 map(xs, \(x) mean((x + 5)^2))
 map(xs, function(x) mean((x + 5)^2))
@@ -29,7 +29,7 @@ map(xs, ~ mean((.x + 5)^2))
 
 Don't use `\()` for multi-line functions:
 
-```R
+``` r
 # Good
 map(xs, function(x) {
   mean((x + 5)^2)
@@ -43,7 +43,7 @@ map(xs, \(x) {
 
 Or when creating named functions:
 
-```R
+``` r
 # Good
 cv <- function(x) {
   sd(x) / mean(x)
@@ -59,31 +59,29 @@ Avoid using `\()` in a pipe, and remember to use informative argument names.
 
 There are two options if the function name and definition can't fit on a single line. In both cases, each argument goes on its own line; the difference is how deep you indent it and where you put `)` and `{`:
 
-*   **Single-indent**: indent the argument name with a single indent (i.e. two spaces).
-    The trailing `)` and leading `{` go on a new line.
+- **Single-indent**: indent the argument name with a single indent (i.e. two spaces). The trailing `)` and leading `{` go on a new line.
 
-    ```{r}
-    # Good
-    LongFunctionName <- function(
-      a = "a long argument",
-      b = "another argument",
-      c = "another long argument"
-    ) {
-      # As usual code is indented by two spaces.
-    }
-    ```
+  ```{r}
+  # Good
+  LongFunctionName <- function(
+    a = "a long argument",
+    b = "another argument",
+    c = "another long argument"
+  ) {
+    # As usual code is indented by two spaces.
+  }
+  ```
 
-*   **Hanging-indent**: indent the argument name to match the opening `(` of `function`.
-    The trailing `)` and leading `{` go on the same line as the last argument.
+- **Hanging-indent**: indent the argument name to match the opening `(` of `function`. The trailing `)` and leading `{` go on the same line as the last argument.
 
-    ```{r}
-    # Good
-    LongFunctionName <- function(a = "a long argument",
-                                   b = "another argument",
-                                   c = "another long argument") {
-      # As usual code is indented by two spaces.
-    }
-    ```
+  ```{r}
+  # Good
+  LongFunctionName <- function(a = "a long argument",
+                                 b = "another argument",
+                                 c = "another long argument") {
+    # As usual code is indented by two spaces.
+  }
+  ```
 
 These styles are designed to clearly separate the function definition from its body.
 
@@ -139,10 +137,7 @@ FindAbs <- function(x) {
 }
 ```
 
-If your function is called primarily for its side-effects (like printing,
-plotting, or saving to disk), it should return the first argument invisibly.
-This makes it possible to use the function as part of a pipe. `print` methods
-should usually do this, like this example from [httr](http://httr.r-lib.org/):
+If your function is called primarily for its side-effects (like printing, plotting, or saving to disk), it should return the first argument invisibly. This makes it possible to use the function as part of a pipe. `print` methods should usually do this, like this example from [httr](http://httr.r-lib.org/):
 
 ```{r}
 PrintURL <- function(x, ...) {
@@ -153,8 +148,7 @@ PrintURL <- function(x, ...) {
 
 ## Comments
 
-In code, use comments to explain the "why" not the "what" or "how". Each line
-of a comment should begin with the comment symbol and a single space: `# `.
+In code, use comments to explain the "why" not the "what" or "how". Each line of a comment should begin with the comment symbol and a single space: `#`.
 
 ```{r}
 # Good
@@ -169,8 +163,7 @@ x <- map_if(x, is_bare_list, recurse)
 x <- map_if(x, is_bare_list, recurse)
 ```
 
-Comments should be in sentence case, and only end with a full stop if they
-contain at least two sentences:
+Comments should be in sentence case, and only end with a full stop if they contain at least two sentences:
 
 ```{r}
 # Good

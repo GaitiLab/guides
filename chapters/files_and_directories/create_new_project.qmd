@@ -1,0 +1,59 @@
+# Creating a new CompBio or Manuscript project
+
+Please follow the instructions in the code block carefully.
+
+1.  In Terminal logged into H4H + compute node:
+
+``` shell
+# Create exectutable
+cp setup/initProject.sh $HOME/bin/initProject.sh
+# if $HOME/bin doesn't exist yet
+# mkdir -p $HOME/bin
+chmod +x $HOME/bin/initProject.sh
+
+# Create project
+ ./initProject.sh
+Initialize a project from a GLTB template.
+
+Usage:
+    initProject.sh TYPE DESTINATION [GLTB_DIR]
+
+Arguments:
+    TYPE           Project type:
+                     compbio
+                     manuscript
+
+    DESTINATION    Project directory to create.
+
+    GLTB_DIR       Path to GaitiLabToolBox.
+
+Resolution order for GLTB_DIR:
+    1. GLTB_DIR argument
+    2. GLTB environment variable
+    3. Default:
+       /cluster/projects/gaitigroup/Pipelines/GaitiLabToolBox
+
+Examples:
+    initProject.sh compbio my_project
+
+    initProject.sh manuscript my_paper
+
+    initProject.sh compbio my_project \
+        /cluster/projects/gaitigroup/Pipelines/GaitiLabToolBox
+```
+
+2.  Create a repository on [github.com](https://github.com) (**private**; either personal or GaitiLab workspace)
+
+![1792448988483](image/setup/initRepoGitHub.png)
+
+3.  In Terminal **local** run the following:
+
+``` shell
+# Create exectutable
+cp setup/initGithubRepo.sh $HOME/bin/initGitHubRepo.sh
+# if $HOME/bin doesn't exist yet
+# mkdir -p $HOME/bin
+chmod +x $HOME/bin/initGitHubRepo.sh
+
+./initGitHubRepo.sh ${PROJECT_DIR} ${GITHUB_REPO_URL}
+```
