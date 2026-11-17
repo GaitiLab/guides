@@ -1,0 +1,565 @@
+---
+title: "Gaiti Lab tutorial: Analysing single-cell data using Seurat"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    theme: journal
+    code_folding: hide
+    toc: true
+---
+
+## Introduction
+Seurat is a tool that combines various methods for quality control, analysis, and exploration of single-cell genomic data. Our lab is specifically interested in using Seurat as it works well with both of our main methodologies of single-cell and spatial transcriptomics. As a quick introduction, single-cell sequencing is a technique that allows researchers to examine the gene expression of individuals cells, as opposed to the traditional bulk methods that average the gene expression across a population of cells. This allows for a more detailed understanding of the heterogeneity within a sample, and can reveal insights into cell types, states, and functions that may be missed in bulk analyses.
+
+In this tutorial, we will focus on the analysis of single-cell RNA-seq (scRNA-seq) data using Seurat. The goal of this tutorial is to familiarize yourself with using Seurat and its standardised workflow. We will cover the following steps: quality control, normalisation, transformation & integration, clustering, and cell annotation. This tutorial is designed to be interactive, and it is encouraged that you attempt to write your own code with the instructions given before looking at the provided code snippet. When you see **INSTRUCTION:**, it will be accompanied by a `Show` button that will reveal the solution code snippet.
+
+## Data overview
+The pre-processed data used in this tutorial is only available [here](https://universityhealthnetwork-my.sharepoint.com/:f:/r/personal/federico_gaiti_uhn_ca/Documents/GaitiLabShared/Dry%20Lab/seuratTutorialData/data?csf=1&web=1&e=og4MR3) through the shared Gaiti Lab OneDrive. Please download it and move it to the same folder as this tutorial/your own code. If you do not have access, please contact Dr. Federico Gaiti via Slack or email.
+
+The data is of scRNA-seq data from a study of hematopoietic bone marrow cells from mice at different stages of development (8 weeks and 2 years). The tutorial will focus on evaluating the transcriptomic differences between these two time points at single-cell resolution.
+
+## Setup
+To begin, we will load the necessary libraries and set up the environment for our analysis. Please make sure you have the following packages installed: `Seurat`, `SeuratObject`, `Matrix`, `readr`, `dplyr`, `sctransform`, `usethis`, `stringr`, `networkD3`, `devtools`, `BiocManager` from CRAN, `DropletUtils`, `biomaRt`, `SingleR`, `celldex`, `scater` from Bioconductor, and `singleCellNet` from their Git repo. If you are running this tutorial on a Mac, please make sure that you have Xcode installed, as some of the packages require compilation. You can install Xcode from the App Store or by running `xcode-select --install` in the terminal.
+
+To make sure you have all the necessary packages installed, you can run the following code OR you can use the Dockerfile provided to build the environment needed. We recommend to use the Dockerfile, as the manual R installation of the packages can result in errors depending on your system configuration.
+```{r wd, include=FALSE}
+library(knitr)
+knitr::opts_knit$set(root.dir = "tutorial")
+knitr::opts_chunk$set(echo = TRUE, fig.width = 10, fig.height = 5, out.width = "90%")
+```
+
+
+```{r setup, message=FALSE, warning=FALSE, collapse=FALSE}
+# Install CRAN packages
+cran_packages <- c("Seurat", "SeuratObject", "Matrix", "readr", "dplyr", "sctransform", "usethis", "stringr", "networkD3", "BiocManager", "pak")
+install.packages(setdiff(cran_packages, rownames(installed.packages())))
+
+library(Seurat)
+library(SeuratObject)
+library(Matrix)
+library(readr)
+library(dplyr)
+library(sctransform)
+library(usethis)
+library(stringr)
+library(networkD3)
+library(BiocManager)
+library(pak)
+
+# Install Bioconductor packages
+bioc_packages <- c("DropletUtils", "biomaRt", "SingleR", "celldex", "scater")
+BiocManager::install(setdiff(bioc_packages, rownames(installed.packages())))
+
+library(DropletUtils)
+library(biomaRt)
+library(SingleR)
+library(celldex)
+library(scater)
+
+# Install SingleCellNet from GitHub
+if ("singleCellNet" %in% rownames(installed.packages()) == FALSE) {
+  pak::pak("pcahan1/singleCellNet")
+}
+
+if ("presto" %in% rownames(installed.packages()) == FALSE) {
+  pak::pak("immunogenomics/presto")
+}
+
+library(singleCellNet)
+library(presto)
+```
+
+If you choose to use the Dockerfile, you can build the image by running the following command in the terminal. You can change the `-e` argument to set your own password for the RStudio server. You can access the RStudio server by going to `http://localhost:8787` in your web browser and logging in with the username `rstudio` and the password you set.
+```{r docker, eval=FALSE}
+docker build -t seurat-sc-tut .
+
+docker run --name seurat-sc-tut -e PASSWORD=password -p 8787:8787 -v "$(pwd)":/home/rstudio/projects seurat-sc-tut
+```
+
+Now, please ensure you set the working directory to the folder where you have downloaded the data. You can do this by using the `setwd()` function in R.
+
+We will now read the data into R. The data is already created as a Seurat object. For more information on how to generate a Seurat object from a raw count matrix, you can refer to the documentation [here](https://satijalab.github.io/seurat-object/reference/CreateSeuratObject.html), or type in `?Seurat::CreateSeuratObject` and `?Seurat::Read10X` in the R console.
+
+**INSTRUCTION:** Read in the objects from `data/seuratObjects` using `readRDS()` and assign them to the variables `tbm_control` and `tbm_aged`. The files are named `totalbm_control.rds` and `totalbm_aged.rds`, respectively. Since these objects are from a previous Seurat version, run `UpdateSeuratObject()` on them.
+
+```{r read_data, collapse=TRUE}
+# Read in the Seurat objects
+tbm_control <- readRDS("data/seuratObjects/totalbm_control.rds")
+tbm_aged <- readRDS("data/seuratObjects/totalbm_aged.rds")
+
+tbm_control <- SeuratObject::UpdateSeuratObject(tbm_control)
+tbm_aged <- SeuratObject::UpdateSeuratObject(tbm_aged)
+```
+
+**INSTRUCTION:** Check the structure of the Seurat object using `head()` and `@` to view the first 5 rows of the various slots of the Seurat object. The two slots that are of particular interest are `@meta.data` and `@assays`. The `@meta.data` slot contains the metadata for each cell, while the `@assays` slot contains the data for each experiment type (ex. RNA, ADT, HTO).
+
+```{r check_structure, message=FALSE, warning=FALSE, eval=FALSE}
+head(tbm_control@meta.data, 5)
+head(tbm_control@assays, 5)
+```
+
+## Quality control
+The standard pre-processing workflow in Seurat consists using a few QC metrics that are commonly used. These include:
+
+* Number of unique genes detected in each cell
+  * Low-quality cells will often have very few genes
+  * Cell doublets or multiplets may have an unusually high number of genes
+* Total number of molecules detected within a cell
+  * Low-quality cells will often have very few molecules
+  * Cell doublets or multiplets may have an unusually high number of molecules
+* Percentage of reads that map to mitochondrial genes
+  * High percentage (>5-10%) of reads mapping to mitochondrial genes may indicate that the cell is stressed or dying
+
+You can read more about the standard pre-processing workflow in Seurat [here](https://satijalab.org/seurat/articles/pbmc3k_tutorial#standard-pre-processing-workflow).
+
+To visualise the distributions of these metrics, we can use violin plots. Let's plot the distributions of the number of unique genes detected (nFeature_RNA), the total number of molecules detected (nCount_RNA), and the percentage of reads that map to mitochondrial genes (percent.mt) for both the control and aged samples.
+
+**INSTRUCTION:** Use the `VlnPlot()` function to create violin plots for the three QC metrics: `nFeature_RNA`, `nCount_RNA`, and `pct_mito`. To do this, first assign a meaningful name to each object using the `Idents()` function. Then, you can merge the two objects together with `merge()`. Make sure to set the `add.cell.ids` argument to a vector of two strings that will be used to identify the two samples in the merged object. Finally, use the `VlnPlot()` function to create the violin plots for each QC metric.
+
+```{r qc_violin_plots, message=FALSE, warning=FALSE}
+# Rename the two objects
+SeuratObject::Idents(tbm_control) <- "8_weeks"
+SeuratObject::Idents(tbm_aged) <- "2_years"
+
+# Merge the two datasets
+tbm_merged_for_qc <- merge(tbm_control, tbm_aged, add.cell.ids=c("CTRL", "AGED"))
+
+# Plot the violin plots
+Seurat::VlnPlot(tbm_merged_for_qc, features=c("nFeature_RNA", "nCount_RNA", "pct_mito"), ncol=3)
+```
+
+We can also use a scatter plot to visualise the relationship between the total number of molecules detected to the number of unique genes detected, as well as to the percentage of reads that map to mitochondrial genes. This can help us identify any potential outliers or trends in the data.
+
+**INSTRUCTION:** Use the `FeatureScatter()` function to create scatter plots for the two relationships: `nCount_RNA` vs `nFeature_RNA` and `nCount_RNA` vs `pct_mito`. You can use the `plot1` and `plot2` variables to store the two plots, and then add them together with `+` to create a combined plot.
+
+```{r qc_scatter_plots, message=FALSE, warning=FALSE}
+# Create scatter plots
+plot1 <- Seurat::FeatureScatter(tbm_merged_for_qc, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
+plot2 <- Seurat::FeatureScatter(tbm_merged_for_qc, feature1 = "nCount_RNA", feature2 = "pct_mito")
+
+# Combine plots
+plot1 + plot2
+```
+
+Using these plots, we can see that there are some cells with very low numbers of unique genes detected, as well as some cells with very high percentages of read mapping to mitochondrial genes. We will now go through the process of filtering out these low-quality cells from our dataset. The specific thresholds for filtering will depend on the characteristics of the dataset and the research question being addressed. For this tutorial, we will filter out the cells using the following thresholds:
+
+* Standard deviation = σ, median = M
+* Upper limit for `nFeature_RNA` and `nCount_RNA`: M + 3σ
+* Lower limit for `nCount_RNA`: 1000
+* Upper limit for `pct_mito`: 5%
+
+**INSTRUCTION:** Use the `subset()` function to filter out the low-quality cells from each dataset individually (NOT the merged one) with the thresholds mentioned above. Keep in mind that you may have to calculate the median and standard deviation of the `nFeature_RNA` and `nCount_RNA` metrics before applying the filtering criteria. Then, merge the two filtered datasets together again using the `merge()` function. Make sure to set the `add.cell.ids` argument to a vector of two strings that will be used to identify the two samples in the merged object.
+
+```{r qc_filtering, message=FALSE, warning=FALSE}
+# Calculate the upper limits for nFeature_RNA and nCount_RNA for both datasets
+upperlimit_control_nFeature_RNA <- median(tbm_control$nFeature_RNA) + (3 * sd(tbm_control$nFeature_RNA))
+upperlimit_control_nCount_RNA <- median(tbm_control$nCount_RNA) + (3 * sd(tbm_control$nCount_RNA))
+
+upperlimit_aged_nFeature_RNA <- median(tbm_aged$nFeature_RNA) + (3 * sd(tbm_aged$nFeature_RNA))
+upperlimit_aged_nCount_RNA <- median(tbm_aged$nCount_RNA) + (3 * sd(tbm_aged$nCount_RNA))
+
+# Subset
+tbm_control <- subset(tbm_control, subset = nFeature_RNA < upperlimit_control_nFeature_RNA & nCount_RNA < upperlimit_control_nCount_RNA & nCount_RNA > 1000 & pct_mito < 5)
+tbm_aged <- subset(tbm_aged, subset = nFeature_RNA < upperlimit_aged_nFeature_RNA & nCount_RNA < upperlimit_aged_nCount_RNA & nCount_RNA > 1000 & pct_mito < 5)
+
+# Merge
+tbm_merged <- merge(tbm_control, y = tbm_aged, add.cell.ids=c("CTRL", "AGED"))
+```
+
+You can choose to re-run the violin and scatter plots to visualise the distributions of the QC metrics after filtering. This will allow you to see how the filtering has affected the data and whether any low-quality cells remain in the dataset. Moreover, further steps can be done here by normalising the data through `NormalizedData()`, which assumes that each cell originally contains the same number of RNA molecules, or `SCTransform()`, which does not use this assumption. Please adapt your future workflows depending on whether you require normalised data or not.
+
+For this tutorial, we will use `SCTransform()` to normalise the data for ease, as it combines several steps including normalisation, scaling, and variable feature selection into a single function. This will allow us to proceed with the analysis without having to perform these steps separately. By selecting `percent.mt` to regress, we can further ensure that all artifacts from the mitochondrial genes are removed from the data. Furthermore, this can help regress out effects to ensure that the data clusters by cell type rather than by sample, which will be important for our downstream analysis.
+
+**INSTRUCTION:** Use the `SCTransform()` function to normalise the merged dataset. Make sure to set the `vars.to.regress` argument to `"percent.mt"` to regress out the effects of mitochondrial gene expression. You can also set the `verbose` argument to `FALSE` to suppress any messages during the normalisation process.
+
+```{r transform, message=FALSE, warning=FALSE}
+tbm_merged <- Seurat::SCTransform(tbm_merged, vars.to.regress = "pct_mito", verbose = FALSE)
+```
+
+Now, we have finished the canonical pre-processing workflow in Seurat. We have filtered out low-quality cells, normalised the data, and regressed out the effects of mitochondrial gene expression. Feel free to adapt this workflow to your own datasets and research questions.
+
+## Cell cycle scoring and regression
+
+If your research question does not involve cell cycle analysis, it may be a good practice to regress out the effects of cell cycle genes from your dataset. This is because cell cycle genes can drive unwanted clustering in PCAs or UMAPs by separating by primarily S or G2/M instead of cell type. Further information about this topic can be found [here](https://satijalab.org/seurat/articles/cell_cycle_vignette.html).
+
+You can test for the presence of cell cycle effects in your dataset and decide whether or not you would like to do this step. This can be done by using the `CellCycleScoring()` function. This function will assign a score to each cell based on the expression of cell cycle genes, and will also assign a phase (G1, S, or G2/M) to each cell based on its score. You can then visualise whether the dataset clusters by cell cycle or not using a PCA.
+
+**INSTRUCTION:** Load the cell cycle gene list from the `data/seurat_genes` folder. These files are named `mm_s_genes.tsv` and `mm_g2m_genes.tsv`, corresponding to their phases. Then, use the `CellCycleScoring()` function to assign cell cycle scores, using the gene list from the two files. Finally, use the `RunPCA()` function to run a PCA on the dataset using the row names of the merged Seurat object (gene names) as the features, and visualise the results using the `DimPlot()` function.
+
+```{r cell_cycle_scoring, message=FALSE, warning=FALSE}
+# Load the cell cycle gene list
+s_genes <- readr::read_tsv("data/seurat_genes/mm_s_genes.tsv", col_names = FALSE)
+g2m_genes <- readr::read_tsv("data/seurat_genes/mm_g2m_genes.tsv", col_names = FALSE)
+
+# Assign cell cycle scores
+tbm_merged <- Seurat::CellCycleScoring(tbm_merged, s.features = s_genes$X1, g2m.features = g2m_genes$X1, set.ident = TRUE)
+
+# Run and visualise PCA
+tbm_merged <- Seurat::RunPCA(tbm_merged, features = rownames(tbm_merged))
+Seurat::DimPlot(tbm_merged)
+```
+
+In the PCA plot, we are not seeing any clear separation of cells by cell cycle phase. This suggests that cell cycle effects are not driving the clustering in this dataset, and we can proceed with the analysis without regressing out cell cycle genes. However, if you do see a clear separation of cells by cell cycle phase, it may be a good idea to regress out the effects of cell cycle genes using the `ScaleData()` function, using `S.Score` and `G2M.Score` as the `vars.to.regress`.
+
+Example code of how you would do this is shown here:
+
+```{r cell_cycle_regression, message=FALSE, warning=FALSE, eval=FALSE}
+# Regress out cell cycle effects
+tbm_merged <- Seurat::ScaleData(tbm_merged, vars.to.regress = c("S.Score", "G2M.Score"), features = rownames(tbm_merged))
+
+# Run and visualise PCA again
+tbm_merged <- Seurat::RunPCA(tbm_merged, features = rownames(tbm_merged))
+Seurat::DimPlot(tbm_merged)
+```
+
+## Integration
+Let's now take a look at how to integrate the two datasets. Integration is a process that allows us to combine multiple datasets into a single dataset, in our case, the control and aged datasets. This is important because it allows us to jointly identify cell subpopulations across datasets, and to compare how each group of cells differs across conditions. This process is particularly relevant to datasets that you expect to share cell types, but may have been generated using different technologies or experimental conditions, but it is recommended to check whether integration is necessary regardless.
+
+First, we will visualise the data without integration to see how the two datasets cluster together. From this result, we can decide whether to run integration or not. Since we have already ran `SCTransform()` on the merged dataset and reduced using `RunPCA()`, no further normalization is required. We will run a UMAP to visualise how cells are clustering.
+
+**INSTRUCTION:** Use the `RunUMAP()` function to run a UMAP on the merged dataset using the first 30 principal components from the PCA. Then, use the `DimPlot()` function to visualise the UMAP, grouping by `orig.ident` and `seurat_clusters`.
+
+```{r preintegration, message=FALSE, warning=FALSE}
+# Split dataset by their experimental group
+tbm_merged[["RNA"]] <- split(tbm_merged[["RNA"]], f = tbm_merged$orig.ident)
+
+# Find neighbors and clusters
+tbm_merged <- Seurat::FindNeighbors(tbm_merged, dims = 1:30, reduction = "pca")
+tbm_merged <- Seurat::FindClusters(tbm_merged, resolution = 2, verbose = FALSE)
+
+# Run UMAP and visualise
+tbm_merged <- Seurat::RunUMAP(tbm_merged, dims = 1:30, reduction = "pca", reduction.name = "umap.unintegrated")
+Seurat::DimPlot(tbm_merged, reduction = "umap.unintegrated", group.by = c("orig.ident", "seurat_clusters"))
+
+# Unmerge the dataset
+tbm_merged[["RNA"]] <- SeuratObject::JoinLayers(tbm_merged[["RNA"]])
+```
+
+In this UMAP, we can see that the two datasets are actually clustering together, suggesting that integration may not be necessary. However, if you do see a clear separation of cells by stimulation, it may be a good idea to run integration using the `IntegrateLayers()` function. This will allow us to identify shared cell populations across datasets, and to compare how each group of cells differs across conditions. 
+
+Example code of how you would do this is shown here:
+
+```{r integration, message=FALSE, warning=FALSE, eval=FALSE}
+# Integrate the layers back
+tbm_merged <- Seurat::IntegrateLayers(tbm_merged, method = CCAIntegration, orig.reduction = "pca", new.reduction = "integrated.cca")
+
+tbm_merged[["RNA"]] <- SeuratObject::JoinLayers(tbm_merged[["RNA"]])
+
+tbm_merged <- Seurat::FindNeighbors(tbm_merged, dims = 1:30, reduction = "integrated.cca")
+tbm_merged <- Seurat::FindClusters(tbm_merged, resolution = 2, verbose = FALSE)
+tbm_merged <- Seurat::RunUMAP(tbm_merged, dims = 1:30, reduction = "integrated.cca")
+
+Seurat::DimPlot(tbm_merged, reduction = "umap.integrated.cca", group.by = c("orig.ident", "seurat_clusters"))
+```
+
+Previously in Seurat v4, integration was done using the `FindIntegrationAnchors()` and `IntegrateData()` functions. However, in Seurat v5, these functions have been deprecated and replaced with the `IntegrateLayers()` function. The new function is more efficient and allows for more flexibility in integrating multiple datasets. For more information on the differences between the two methods, please refer to the Seurat v5 documentation [here](https://satijalab.org/seurat/articles/seurat5_integration).
+
+## Clustering
+While the previous sections have covered the basics of clustering, we will now go into more detail on how to perform clustering in Seurat. Clustering is a process that allows us to group cells together based on their gene expression profile, and visualised using unsupervised dimensionality reduction techniques such as UMAP or t-SNE. Between the two, UMAP is generally preferred as it provides a balance between preserving local and global structures, and is faster to compute. However, t-SNE can be useful for visualising high-dimensional data in a lower-dimensional space, and can be used to identify clusters that may not be apparent in UMAP. The choice of which method to use will depend on the specific characteristics of the dataset and the research question being addressed.
+
+For this tutorial, we will focus on setting the UMAP parameters to emphasise local structure, as we anticipate that small clusters of rare cell populations in the bone marrow will be easier to identify with local structure retained.
+
+We previously ran `RunPCA()` on the merged dataset, which is a necessary step before running UMAP since Seurat clusters cells based on their PCA scores. However, choosing how many principal components to use for clustering can be a challenging task. One way to determine the optimal number of principal components is to use an elbow plot, which ranks principal components based on the percentage of variance explained by each one.
+
+**INSTRUCTION:** Use the `ElbowPlot()` function to create an elbow plot for the merged dataset for the first 50 principal components.
+```{r elbowplot, message=FALSE, warning=FALSE}
+Seurat::ElbowPlot(tbm_merged, ndims = 50)
+```
+
+From this plot, it seems like we can observe an 'elbow' at around PC10-30, suggesting that we can use the first 30 principal components for clustering. However, it is important to note that the choice of how many principal components to use within this range will depend on the specific characteristics of the dataset and the research question being addressed. It is suggested that users err on the higher side of this range, as it is better to include more principal components than to exclude potentially important information.
+
+Now, we can run UMAP and t-SNE on the merged dataset using the first 30 principal components. Let's start by using the parameters `n.neighbors = 50` and `min.dist = 0.5` for UMAP. For t-SNE, we will use the default parameters.
+
+**INSTRUCTION:** Use the `RunUMAP()` function to run a UMAP on the merged dataset using the first 30 principal components. Then, use the `FindNeighbors()` and `FindClusters()` functions to find neighbors and clusters in the dataset. Finally, use the `RunTSNE()` function to run a t-SNE on the merged dataset using the first 30 principal components. You can visualise both UMAP and t-SNE using the `DimPlot()` function.
+
+```{r umap_tsne, message=FALSE, warning=FALSE}
+# UMAP
+tbm_merged <- Seurat::RunUMAP(tbm_merged, dims = 1:30, n.neighbors = 50, min.dist = 0.5, reduction = "pca", reduction.name = "umap")
+
+# t-SNE
+tbm_merged <- Seurat::FindNeighbors(tbm_merged, dims = 1:30, k.param = 20)
+tbm_merged <- Seurat::FindClusters(tbm_merged, resolution = 0.1, verbose = FALSE)
+tbm_merged <- Seurat::RunTSNE(tbm_merged, dims = 1:30)
+
+Seurat::DimPlot(tbm_merged, reduction = "tsne") + Seurat::DimPlot(tbm_merged, reduction = "umap")
+```
+
+We can change the parameters of the UMAP to gain greater resolution of the local structure. However, this will come at the cost of losing some global structure. For example, we can set both `n.neighbors` and `min.dist` to lower values to emphasise local structure. Try it out for yourself and see how the UMAP changes. You can also try changing the `k.param` parameter in the `FindNeighbors()` function, and the `resolution` in `FindClusters()` for t-SNE and see how it affects the local structure.
+
+**INSTRUCTION:** Rerun `RunUMAP()` using the first 30 principal components with `n.neighbors = 10` and `min.dist = 0.01`. Then rerun `FindNeighbors()` with `k.param = 5`, `FindClusters()` with `resolution = 1`, and `RunTSNE()` using the first 30 principal components. Display the t-SNE and UMAP plots side by side using `DimPlot()` and compare them with the previous plots. These commands replace the existing UMAP, t-SNE, and cluster assignments in `tbm_merged`.
+
+```{r umap_tsne_local, message=FALSE, warning=FALSE}
+# UMAP
+tbm_merged <- Seurat::RunUMAP(tbm_merged, dims = 1:30, n.neighbors = 10, min.dist = 0.01, reduction = "pca", reduction.name = "umap")
+# t-SNE
+tbm_merged <- Seurat::FindNeighbors(tbm_merged, dims = 1:30, k.param = 5)
+tbm_merged <- Seurat::FindClusters(tbm_merged, resolution = 1, verbose = FALSE)
+tbm_merged <- Seurat::RunTSNE(tbm_merged, dims = 1:30)
+
+Seurat::DimPlot(tbm_merged, reduction = "tsne") + Seurat::DimPlot(tbm_merged, reduction = "umap")
+```
+We can observe that with these changed parameters, both UMAP and t-SNE are encouraged to find smaller clusters of cells, which may be useful for identifying rare cell populations.
+
+Another downstream analysis that can be performed is to run differential expression analysis to identify positive and negative gene markers of each cluster. The `FindAllMarkers()` function automates this process for all clusters. Let's run this function on the merged dataset to identify the top 10 positive and negative gene markers for each cluster.
+
+**INSTRUCTION:** Use the `FindAllMarkers()` function to identify gene markers for each cluster in the merged dataset, with the parameter `min.pct` set to 0.1. If you have not installed the `presto` package, it may take a while to run this function. Then, use the following parameters to filter out for the top 5 positive gene markers for each cluster: `p_val_adj < 0.05`. You can use the `dplyr` package to filter and arrange the results.
+
+```{r cluster_de, message=FALSE, warning=FALSE}
+# Find positive and negative gene markers for each cluster
+tbm_merged_markers <- Seurat::FindAllMarkers(tbm_merged, min.pct = 0.1) %>%
+  dplyr::group_by(cluster)
+
+# View the top 5 positive and negative gene markers for each cluster
+tbm_merged_markers_top5 <- tbm_merged_markers %>%
+  dplyr::filter(p_val_adj < 0.05) %>%
+  dplyr::arrange(desc(avg_log2FC)) %>%
+  dplyr::group_by(cluster) %>%
+  dplyr::slice_head(n = 5) %>%
+  dplyr::ungroup()
+```
+
+Using these features, we can visualise the expression patterns of the gene markers across the UMAP clusters. Let's use the top 5 gene markers from cluster 0 as an example.
+
+**INSTRUCTION:** Starting with `tbm_merged_markers_top5`, use `filter()` to select the rows for cluster 0 and `pull(gene)` to extract the gene names. Save them as `top5_cluster0`, then use `FeaturePlot()` to visualise their expression on the UMAP.
+
+```{r feature_plot, message=FALSE, warning=FALSE}
+# Get the top gene markers for cluster 0
+top5_cluster0 <- tbm_merged_markers_top5 %>%
+  dplyr::filter(cluster == 0) %>%
+  dplyr::pull(gene)
+
+# Visualise the expression patterns of the top 5 gene markers for cluster 0
+Seurat::FeaturePlot(tbm_merged, features = top5_cluster0, reduction = "umap")
+```
+
+We can see that these gene markers are specially expressed in cluster 0, suggesting that they may be useful for identifying the cell type of this cluster. We can repeat this process for the other clusters to identify their gene markers and visualise their expression patterns.
+
+## Cell annotation
+There are lots of annotation methods available for scRNA-seq data, broadly characterisable by their approach: statistical/correlation or machine learning. In this tutorial, we will try out two widely adopted methods: [SingleR](https://www.nature.com/articles/s41590-018-0276-y) and [SingleCellNet](https://www.sciencedirect.com/science/article/pii/S2405471219301991?via%3Dihub). SingleR is a statistical method that uses correlation to assign cell types based on reference datasets, while SingleCellNet is a machine learning method that uses a random forest classifier to assign cell types based on training datasets. Note that there are other popular methods available, such as CellTypist, which uses a logistic regression model to assign cell types based on reference datasets. Again, the choice of which method to use will depend on the specific characteristics of the dataset and the research question being addressed.
+
+The overall goal for this section is to find cell type annotations for the clusters identified in the previous section, and to visualise them on the UMAP. 
+
+### SingleR annotation
+SingleR uses a Spearman correlation coefficient to assign cell types based on reference datasets. When using it, there are a number of statistical tests that can be employed to identify differential expression between the query and reference datasets, such as the Wilcoxon rank-sum test, the t-test, and the likelihood ratio test. The choice of which test to use will depend on the specific characteristics of the dataset and the research question being addressed. For this tutorial, we will use the Wilcoxon rank-sum test, as it is generally favoured for its higher accuracy and sensitivity for rare cell types, with its speed being its main drawback.
+
+**INSTRUCTION:** Load the ImmGen reference dataset using `celldex::ImmGenData()` and save it as `immgen_ref`. Run `SingleR()` using the RNA expression matrix from `tbm_merged` as the test data, `immgen_ref` as the reference, and `immgen_ref$label.main` as the reference labels. Set `assay.type.test = 1` and `de.method = "wilcox"`, then save the output as `singler_prediction`. Display the classification scores using `plotScoreHeatmap()`.
+
+```{r singler, message=FALSE, warning=FALSE}
+# Load the ImmGen reference dataset
+immgen_ref <- celldex::ImmGenData()
+
+# Run SingleR on the merged dataset using the ImmGen reference dataset
+singler_prediction <- SingleR::SingleR(test = Seurat::GetAssayData(tbm_merged, assay = "RNA"),
+                                       ref = immgen_ref,
+                                       assay.type.test = 1,
+                                       labels = immgen_ref$label.main,
+                                       de.method = "wilcox")
+
+# Visualise the scores between the query cells and the reference cell types
+SingleR::plotScoreHeatmap(singler_prediction)
+```
+
+This heatmap shows the correlation scores between the query cells and the reference cell types. The higher the score, the more likely the query cell belongs to that reference cell type. Lower scores indicate that the cell type is more ambiguous, possibly due to lower coverage or noise. To interpret this, think of the columns as the query cells, where each colour represents the cell type SingleR has assigned to it. The rows represent the reference cell types, as shown by the labels to the right of the heatmap. The colour of each cell in the heatmap represents the correlation score between the query cell and the reference cell type, with darker colours indicating higher scores.
+
+We can then assign the predicted cell types to the Seurat object and visualise them on the UMAP.
+
+**INSTRUCTION:** Add `singler_prediction$labels` to the metadata of tbm_merged in a column named `singler_immgen`. Then use `DimPlot()` to display the UMAP grouped by this column, setting `label = TRUE` and `repel = TRUE` to make the cell type labels easier to read.
+
+```{r singler_umap, message=FALSE, warning=FALSE}
+# Assign the predicted cell types to the Seurat object
+tbm_merged$singler_immgen <- singler_prediction$labels
+
+# Visualise the predicted cell types on the UMAP
+Seurat::DimPlot(tbm_merged, reduction = "umap", group.by = c("singler_immgen"), label = TRUE, repel = TRUE)
+```
+
+### SingleCellNet annotation
+Instead of statistical tests to assign cell types, SingleCellNet uses a random forest classifier to assign cell types based on expression values of matched gene pairs across the query and reference datasets. To do this, we will train and validate the model and apply it to our query dataset.
+
+**INSTRUCTION:** Extract the `counts` layer from the SCT assay of `tbm_merged`, convert it to a matrix using `as.matrix()`, and save it as `query_set`. Then use `utils_loadObject()` to load the reference expression matrix and metadata from the two files below. Save these objects as `training_matrix` and `training_metadata`, respectively.
+
+```{r singlecellnet_step1, message=FALSE, warning=FALSE}
+# Get the expression matrix from the Seurat object
+query_set <- SeuratObject::GetAssayData(tbm_merged, assay = "SCT", layer = "counts")
+
+# Load the training data and metadata
+training_data <- "data/singlecellnet/sampTab_TM_053018_exp_matrix.rda"
+training_metadata <- "data/singlecellnet/sampTab_TM_053018_metadata.rda"
+
+training_matrix <- singleCellNet::utils_loadObject(training_data)
+training_metadata <- singleCellNet::utils_loadObject(training_metadata)
+```
+
+The classifier needs genes that are present in both datasets. We will subset the reference and query matrices so that they contain the same genes in the same order.
+
+**INSTRUCTION:** Use `intersect()` to identify the shared gene names between `training_matrix` and `query_set`, and save them as `common_genes`. Subset both matrices using this vector. Save the subsetted reference matrix as `training_set` and keep the subsetted query matrix as `query_set`.
+
+```{r singlecellnet_step2, message=FALSE, warning=FALSE}
+# Find the common genes between the training and query datasets
+common_genes <- intersect(rownames(training_matrix), rownames(query_set))
+
+# Subset the training and query datasets to only include the common genes
+query_set <- query_set[common_genes, ]
+training_set <- training_matrix[common_genes, ]
+```
+
+Next, we will divide the reference cells into training and testing groups. Keeping the testing cells separate allows us to evaluate the classifier using cells it has not seen during training.
+
+**INSTRUCTION:** Use `splitCommon()` with `training_metadata`, `ncells = 50`, and `dLevel = "newAnn"` to divide the reference cells into training and testing groups. Extract the first returned metadata table as `sample_training` and the second as `sample_testing`. Use the row names of these tables to select the corresponding columns from `training_set`, saving the expression matrices as `training_data` and `testing_data`.
+
+```{r singlecellnet_step3, message=FALSE, warning=FALSE}
+# Split the training dataset into a training and testing set
+sample_table <- singleCellNet::splitCommon(sampTab = training_metadata, ncells = 50, dLevel = "newAnn")
+
+# Extract the training cells and their expression data
+sample_training <- sample_table[[1]]
+training_data <- training_set[, row.names(sample_training)]
+
+# Extract the testing cells and their expression data
+sample_testing <- sample_table[[2]]
+testing_data <- training_set[, row.names(sample_testing)]
+```
+
+**INSTRUCTION:** Use `scn_train()` to train the classifier with `sample_training` as the metadata and `training_data` as the expression matrix. Specify `"newAnn"` as the cell type label column and `"cell"` as the cell identifier column. Set `nTopGenes = 10`, `nRand = 70`, `nTrees = 1000`, and `nTopGenePairs = 25`. Save the result as `model`. This step may take some time to run.
+
+```{r singlecellnet_step4, message=FALSE, warning=FALSE}
+# Train the random forest model using the training dataset
+model <- singleCellNet::scn_train(stTrain = sample_training, expTrain = training_data,
+                                  nTopGenes = 10, nRand = 70, nTrees = 1000,
+                                  nTopGenePairs = 25, dLevel = "newAnn", colName_samp = "cell")
+```
+
+We will now evaluate the classifier using the held-out testing cells, whose reference cell types are already known.
+
+**INSTRUCTION:** Use `scn_predict()` to apply `model$cnProc` to `testing_data`, setting `nrand = 50`, and save the scores as `model_eval`. Then use `assess_comm()` to compare the predictions with the known labels. Supply `sample_testing` as both metadata tables, `"cell"` as the cell identifier column, and `"newAnn"` as both cell type label columns. Save the assessment as `heldout_assessment` and visualise the precision–recall curves using `plot_PRs()`.
+
+```{r singlecellnet_step5, message=FALSE, warning=FALSE}
+# Evaluate the model using the testing dataset
+model_eval <- singleCellNet::scn_predict(model$cnProc, testing_data, nrand = 50)
+
+# Assess the model performance using a held-out testing dataset
+heldout_assessment <- singleCellNet::assess_comm(ct_scores = model_eval,
+                                                 stTrain = sample_testing,
+                                                 stQuery = sample_testing,
+                                                 dLevelSID = "cell",
+                                                 classTrain = "newAnn",
+                                                 classQuery = "newAnn")
+singleCellNet::plot_PRs(heldout_assessment)
+```
+
+We can see from the precision-recall curve that the model is performing well, with a high precision and recall for most cell types except for erthyrocytes and 'rand'. We can tell because the AU-PRC (area under the precision-recall curve) is close to 1 for most cell types, indicating that the model is able to correctly identify true positives while minimising false positives.
+
+Now that we've created the random forest model and validated it, we can apply it to our query dataset to assign cell types. We can then visualise the predicted cell types on a heatmap and on UMAP.
+
+**INSTRUCTION:** Apply the trained classifier to `query_set` using `scn_predict()`, passing `model$cnProc` as the classifier and setting `nrand = 50`. Save the classification scores as `tbm_predictions`.
+
+```{r singlecellnet_step6, message=FALSE, warning=FALSE}
+# Apply the model to the query dataset to predict cell types
+tbm_predictions <- singleCellNet::scn_predict(model$cnProc, query_set, nrand = 50)
+```
+
+**INSTRUCTION:** Use `assign_cate()` to convert the classification scores into cell type assignments. Select the first `nrow(tbm_merged@meta.data)` columns of `tbm_predictions` to exclude the added random profiles. Supply `tbm_merged@meta.data` as the metadata, set `cThresh = 0.5`, and save the result as `tbm_predict_results`.
+
+```{r singlecellnet_step7, message=FALSE, warning=FALSE}
+tbm_predict_results <- singleCellNet::assign_cate(classRes = tbm_predictions[, 1:nrow(tbm_merged@meta.data)],
+                                                  sampTab = tbm_merged@meta.data,
+                                                  cThresh = 0.5)
+```
+
+We can inspect the classification scores in a heatmap to see how strongly each query cell matches the reference cell types.
+
+INSTRUCTION: Extract the predicted categories into a vector named `tbm_predict_celltypes` and name its entries using the row names of `tbm_merged@meta.data`. Append 50 entries with the value `"rand"`, named rand_1 through rand_50, to match the random profiles added during prediction. Use `sc_hmClass()` to plot `tbm_predictions` with this label vector, setting `max = 5000`, `isBig = TRUE`, `cCol = FALSE`, and `font = 8`. Wrap the plotting call in `print()` so it displays when knitting.
+
+```{r singlecellnet_step8, message=FALSE, warning=FALSE}
+tbm_predict_celltypes <- as.vector(tbm_predict_results$category)
+names(tbm_predict_celltypes) <- rownames(tbm_merged@meta.data)
+
+grpRand <- rep("rand", 50)
+names(grpRand) <- paste("rand_", 1:50, sep = '')
+tbm_predict_celltypes <- append(tbm_predict_celltypes, grpRand)
+
+print(singleCellNet::sc_hmClass(tbm_predictions, tbm_predict_celltypes,
+                                max = 5000, isBig = TRUE, cCol = FALSE, font = 8))
+```
+
+We can see from the heatmap that the model is able to assign cell-types with high confidence again. We can visualise both of the annotation methods together to verify that they are consistent with each other on the UMAP.
+
+**INSTRUCTION:** Add `tbm_predict_results$category` to the metadata of `tbm_merged` in a column named `singlecellnet`. Use `DimPlot()` to create two labelled UMAP plots: one grouped by `singlecellnet` and one grouped by `singler_immgen`. Display them side by side using `+`.
+
+```{r singler_singlecellnet_umap, message=FALSE, warning=FALSE}
+# Assign the predicted cell types from SingleCellNet to the Seurat object
+tbm_merged$singlecellnet <- tbm_predict_results$category
+
+# Visualise the predicted cell types from both methods on the UMAP
+Seurat::DimPlot(tbm_merged, group.by = c("singlecellnet"), reduction = "umap", label = TRUE) +
+  Seurat::DimPlot(tbm_merged, group.by = c("singler_immgen"), reduction = "umap", label = TRUE)
+```
+
+We can see that the two annotation methods are slightly different, as the SingleR approach assigns more specific cell types, while the SingleCellNet approach assigns more generally. To compare the two methods, we can use a Sankey diagram to visualise the concordance between the two methods.
+
+### Sankey network plot
+Using the Sankey plot, we can assess which cell types are concordant between the two methods, and which cell types are discordant. This can help us identify which cell types are more confidently assigned, and which cell types may require further investigation.
+
+**INSTRUCTION:** Create a data frame named `cell_matches` containing the SingleR and SingleCellNet annotations for each cell. Then add a column named `match` that combines the two labels with `"->"` between them, so that each pair of annotations can be counted together.
+
+```{r sankey_step1, message=FALSE, warning=FALSE}
+# Create a data frame with the cell type assignments from both methods
+cell_matches <- data.frame(singler_immgen = tbm_merged$singler_immgen, 
+                           singlecellnet = tbm_merged$singlecellnet)
+
+# Create a new column that combines the two cell type assignments into a single string
+cell_matches$match <- factor(paste(cell_matches$singler_immgen, "->",
+                                   cell_matches$singlecellnet, sep=""))
+```
+
+**INSTRUCTION:** Group `cell_matches` by the `match` column and use `summarise()` with `n()` to count the cells assigned to each annotation pair. Save the result as `cell_match_groupings`.
+
+```{r sankey_step2, message=FALSE, warning=FALSE}
+# Group the data frame by the combined cell type assignments and count the number of cells in each group
+cell_match_groupings <- cell_matches %>%
+  group_by(match) %>%
+  dplyr::summarise(counts = n())
+```
+
+**INSTRUCTION:** Create a links table named `stream_frame`. Split the annotation pairs at `"->"` using `str_split_fixed()`, placing the SingleR labels in source and the SingleCellNet labels in target. Use `str_trim()` to remove surrounding spaces and store the cell counts in value. Each row will represent one connection in the Sankey diagram.
+
+```{r sankey_step3, message=FALSE, warning=FALSE}
+# Create a data frame for the Sankey plot
+stream_frame <- data.frame(source = str_trim(str_split_fixed(cell_match_groupings$match, "->", 2)[,1]),
+                           target = str_trim(str_split_fixed(cell_match_groupings$match, "->", 2)[,2]),
+                           value = cell_match_groupings$counts)
+```
+
+**INSTRUCTION:** Create a `nodes` table containing the labels from each annotation method. Keep the SingleR and SingleCellNet nodes separate, even when they have identical names. Then use `match()` to assign each source and target its node index. Subtract 1 because `networkD3` uses indices starting at 0. Finally, use `sankeyNetwork()` to draw the diagram, with link widths determined by `value`.
+
+```{r sankey_step4, message=FALSE, warning=FALSE}
+nodes <- data.frame(name = c(as.character(stream_frame$source), as.character(stream_frame$target)) 
+                    %>% unique())
+
+stream_frame$IDsource <- match(stream_frame$source, nodes$name) - 1
+stream_frame$IDtarget <- match(stream_frame$target, nodes$name) - 1
+
+# Create the Sankey plot
+networkD3::sankeyNetwork(Links = stream_frame, Nodes = nodes,
+                          Source = "IDsource", Target = "IDtarget",
+                          Value = "value", NodeID = "name",
+                          sinksRight=FALSE, fontSize=12, nodeWidth=30)
+```
+
+You can hover over each cell type to see where cells are being assigned to. From this, we can see that the two methods are largely concordant, with some discordance in the assignment of certain cell types. For example, the "B cells" from the SingleR approach largely correspond to "B cell" and "late pro-B cell" from the SingleCellNet approach. On the other hand, the "Macrophages" from the SingleR approach appear to correspond to multiple cell types from the SingleCellNet approach, suggesting that further investigation may be required to determine the true identity of these cells. Overall, this Sankey plot provides a useful visualisation of the concordance between the two annotation methods, and can help guide further analysis and interpretation of the data.
+
+## Conclusion
+Thanks for following along with the tutorial! You should now understand the following:
+
+* Understand the main steps of a Seurat workflow for analysing single-cell RNA-seq data.
+* Inspect Seurat objects and access their gene expression data and cell metadata.
+* Assess cell quality using QC plots and filter cells using dataset-specific thresholds.
+* Normalise expression data using SCTransform() and assess whether cell cycle regression is needed.
+* Evaluate whether datasets require integration before downstream analysis.
+* Use PCA to select dimensions for neighbour detection, clustering, and visualisation.
+* Explore how clustering and UMAP parameters affect the identification and display of cell populations.
+* Identify cluster marker genes and visualise their expression.
+* Annotate cells using SingleR and train, validate, and apply a SingleCellNet classifier.
+* Compare annotation methods using UMAPs and a Sankey diagram, and identify assignments that need further investigation.
+
+If you have any feedback or if you notice anything that needs a fix, please message Jeremy on Slack!
